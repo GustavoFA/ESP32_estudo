@@ -6,6 +6,7 @@
 /* Referências:
  * https://github.com/anoochit/esp32-example/blob/master/2080_GPIO_Interrupt/main/gpio_intr.c
  * https://esp32.com/viewtopic.php?t=345
+ * https://github.com/pycom/esp-idf-2.0/blob/master/components/esp32/include/esp_intr_alloc.h
  */
 
 // Biblioteca para GPIO ESP32
