@@ -18,9 +18,12 @@ char *tag = "teste";
 
 // ISR
 void isr_function(void *arg){
-  Serial.println("Do something");
+
+  if(!gpio_get_level(input_gpio)){
+    Serial.println("Do something");
+  }
   uint32_t gpio_intr_status = READ_PERI_REG(GPIO_STATUS_REG);
-  SET_PERI_REG_MASK(GPIO_STATUS_W1TC_REG, gpio_intr_status);
+  SET_PERI_REG_MASK(GPIO_STATUS_W1TC_REG, gpio_intr_status); 
 }
 
 void setup() {
@@ -56,7 +59,7 @@ void setup() {
    *  intr_type = GPIO_INTR_W, sendo W = forma de interrupção --> DISABLE, POSEDGE (borda de subida), NEGEDGE (borda de descida), ANYEDGE (ambas as bordas),
    *  LOW_LEVEL (dispara com entrada baixa), HIGH_LEVEL (dispara com entrada alta) e MAX.
    */
-  gpio_set_intr_type(input_gpio, GPIO_INTR_POSEDGE);
+  gpio_set_intr_type(input_gpio, GPIO_INTR_NEGEDGE);
 
   // Habilitar o módulo de interrupção do sinal da GPIO
   // esp_err_t gpio_intr_enable(gpio_num_t gpio_num)
@@ -78,11 +81,12 @@ void setup() {
    */
   gpio_isr_register(isr_function, tag, ESP_INTR_FLAG_LEVEL1, NULL);
 
+  // Pegar o nível da GPIO
+  // int gpio_get_level(gpio_num_t gpio_num)
+
 }
 
 
-void loop() { 
-
-  
+void loop() {   
 
 }
