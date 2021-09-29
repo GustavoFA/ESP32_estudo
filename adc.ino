@@ -4,6 +4,8 @@ int val = 0;
 
 void setup() {
 
+  Serial.begin(115200);
+
   // esp_err_t adc1_config_width(adc_bits_width_t width_bit)
   /* Configura todos os canais do ADC 1
    * width_bit = ADC_WIDTH_X, resolução do ADC em que x = BIT_y (-> y = 9, 10, 11 e 12), MAX
