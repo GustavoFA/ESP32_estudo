@@ -7,9 +7,26 @@
 
 // Biblioteca para controle dos temporizadores
 #include <driver/timer.h>
+#include <driver/gpio.h>
 
+char *tag = "teste";
+
+
+static bool IRAM_ATTR isr_callback(void *args){
+
+  gpio_set_level(GPIO_NUM_2, 1);
+
+  // void timer_group_intr_clr_in_isr(timer_group_tgroup_num, timer_idx_ttimer_num)
+  
+}
 
 void setup(){
+
+
+  // Configurar GPIO para validar interrupção
+  gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
+  gpio_set_level(GPIO_NUM_2, 0);
+  
 
   timer_config_t timer_config = {};
 
@@ -33,7 +50,11 @@ void setup(){
   timer_config.alarm_en = TIMER_ALARM_EN;
 
   // Configura se o temporizador irá se auto reiniciar
-  timer_config.auto_reload = auto_reload;
+  /*
+   * TIMER_AUTORELOAD_DIS -> Desativa o auto reiniciar
+   * TIMER_AUTORELOAD_EN -> Ativa o auto reiniciar
+   */
+  timer_config.auto_reload = TIMER_AUTORELOAD_EN;
 
   // esp_err_t timer_init(timer_group_t group_num, timer_idx_t timer_num, const timer_config_t *config)
   /*
@@ -51,6 +72,25 @@ void setup(){
    * load_val = valor a ser escrito no temporizador
    */
   timer_set_counter_value(TIMER_GROUP_0, TIMER_0, 0);
+
+  // Configurar o valor do temporizador do alarme
+  // esp_err_t timer_set_alarm_value(timer_group_t group_num, timer_idx_t timer_num, uint64_t alarm_value)
+  /*
+   * group_num = TIMER_GROUP_X, x = 0, 1 e MAX
+   * timer_num = TIMER_Z, z = 0, 1 e MAX
+   * alarm_value = 
+   */
+  timer_set_alarm_value(TIMER_GROUP_0, TIMER_0, 3*(TIMER_BASE_CLK/16)); // valor 3 foi usado em um exemplo, sendo 16 o divisor do temporizador
+
+  // Ativar a interrupção de temporizador
+  // esp_err_t timer_enable_intr(timer_group_t group_num, timer_idx_t timer_num)
+  timer_enable_intr(TIMER_GROUP_0, TIMER_0);
+
+  // Adiciona uma ISR ao temporizador
+  // esp_err_t timer_isr_callback_add(timer_group_t group_num, timer_idx_t timer_num, timer_isr_t isr_handler, void *arg, int intr_alloc_flags)
+  timer_isr_callback_add(TIMER_GROUP_0, TIMER_0, isr_callback, tag,2); // Está dando erro aqui
+                                                                       // 'timer_isr_callback_add' was not declared in this scope
+
 
 }
 
