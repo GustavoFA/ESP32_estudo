@@ -1,4 +1,4 @@
-// Junção de funcionalidades: PWM, ADC, interrupção externa e interna.
+// Junção de funcionalidades: PWM, ADC, interrupção externa e interna e WebServer (WiFi AP)
 
 // Biblioteca para GPIO ESP32
 #include <driver/gpio.h>
@@ -8,14 +8,30 @@
 #include <driver/mcpwm.h>
 // Biblioteca para Temporizador
 #include <driver/timer.h>
+// Biblioteca para Wifi
+#include <WiFi.h>
+
 
 #define input_gpio GPIO_NUM_18
 #define gpio_pwm0a GPIO_NUM_5
 #define gpio_pwm0b GPIO_NUM_4
+#define led GPIO_NUM_2
+
+// Credenciais para acesso do WiFi ESP32
+const char* ssid     = "ESP32-Access-Point";
+
+// Variável para armazenar o HTTP request
+String header;
+
+// Variável auxiliar para guardar o estado do led
+String ledState = "off";
 
 char *tag_ = "teste";
 char *tag = "teste";
 int val = 0;
+
+// Número da porta do Web Server
+WiFiServer server(80);
 
 // ISR
 void isr_function(void *arg){
@@ -55,20 +71,73 @@ void IRAM_ATTR isr_callback(void *args) {
   TIMERG0.hw_timer[0].config.alarm_en = 1;
 }
 
-void mudanca(){
+// Função para WebServer com botões que interagem com a lógica do ESP32
+void WebServer_function(){
+  // Verifica os clientes
+  WiFiClient client = server.available();  
 
-  if(i%2){
-    gpio_set_level(GPIO_NUM_2, 1);
-  }else{
-    gpio_set_level(GPIO_NUM_2, 0);
-  }
+  // Quando houver um cliente
+  if (client) {                             
+    String currentLine = "";                // String para armazernar dados do cliente
+    while (client.connected()) {            // Loop para verificar atualizações do cliente
+      if (client.available()) {             
+        char c = client.read();             
+        header += c;
+        if (c == '\n') {      
+
+          if (currentLine.length() == 0) {
   
-  i++;
+            if (header.indexOf("GET /Led/on") >= 0) {
+              ledState = "on";
+              gpio_set_level(led, 1);
+            } else if (header.indexOf("GET /Led/off") >= 0) {
+              ledState = "off";
+              gpio_set_level(led, 0);
+            }
+            
+            //HTML 
+            client.println("<!DOCTYPE html><html>");
+            client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+            client.println("<link rel=\"icon\" href=\"data:,\">");
+            // CSS
+            client.println("<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}");
+            client.println(".button { background-color: #4CAF50; border: none; color: white; padding: 16px 40px;");
+            client.println("text-decoration: none; font-size: 30px; margin: 2px; cursor: pointer;}");
+            client.println(".button2 {background-color: #555555;}</style></head>");
+            
+
+            client.println("<body><h1>ESP32 Web Server</h1>"); 
+            client.println("<p>Led - State " + ledState + "</p>");
+            // Verificação do status do Led para atualizar página       
+            if (ledState=="off") {
+              client.println("<p><a href=\"/Led/on\"><button class=\"button\">ON</button></a></p>");
+            } else {
+              client.println("<p><a href=\"/Led/off\"><button class=\"button button2\">OFF</button></a></p>");
+            } 
+               
+            client.println("</body></html>");
+            client.println();
+            break;
+          } else {
+            currentLine = "";
+          }
+        } else if (c != '\r') { 
+          currentLine += c;      
+        }
+      }
+    }
+    // Clear the header variable
+    header = "";
+    // Close the connection
+    client.stop();
+  }
 }
+
 
 void setup() {
 
-  gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
+  gpio_set_direction(led, GPIO_MODE_OUTPUT);
+  gpio_set_level(led, 0);
 
   mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0A, gpio_pwm0a);  // Identifica a GPIO x para o MCPWM0A
   mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0B, gpio_pwm0b);  // Identifica a GPIO y para o MCPWM0B
@@ -233,11 +302,17 @@ void setup() {
   // esp_err_ttimer_start(timer_group_tgroup_num, timer_idx_ttimer_num)
   timer_start(TIMER_GROUP_0, TIMER_0);
 
+  // Inicio o WiFi como modo de Ponto de acesso (AP)
+  WiFi.softAP(ssid);
+  
+  // Inicio o servidor Web
+  server.begin();
+
 }
 
 
 void loop() {   
 
-  
+  WebServer_function();
 
 }
