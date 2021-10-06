@@ -1,16 +1,19 @@
-// Interrupção ESP32
+// Junção de funcionalidades: PWM, ADC, interrupção externa e interna.
 
 // Biblioteca para GPIO ESP32
 #include <driver/gpio.h>
 // Biblioteca para ADC ESP32
 #include <driver/adc.h>
 // Biblioteca para PWM ESP32
-#include "driver/mcpwm.h"
+#include <driver/mcpwm.h>
+// Biblioteca para Temporizador
+#include <driver/timer.h>
 
 #define input_gpio GPIO_NUM_18
 #define gpio_pwm0a GPIO_NUM_5
 #define gpio_pwm0b GPIO_NUM_4
 
+char *tag_ = "teste";
 char *tag = "teste";
 int val = 0;
 
@@ -27,7 +30,45 @@ void isr_function(void *arg){
   SET_PERI_REG_MASK(GPIO_STATUS_W1TC_REG, gpio_intr_status); 
 }
 
+// Rotina de serviço de interrupção
+void IRAM_ATTR isr_callback(void *args) {
+  
+  val = adc1_get_raw(ADC1_CHANNEL_0);
+  
+  if(val <= 1000){
+    mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, 20);
+    mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_B, 20);
+  }
+  if(val <= 2000 && val >= 1000){
+    mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, 50);
+    mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_B, 50);
+  }
+  if(val >= 3000){
+    mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, 80);
+    mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_B, 80);
+  }
+  
+
+  // Finaliza a interrupção
+  TIMERG0.int_clr_timers.t0 = 1; // Supostamente limpa o bit de interrupção --> https://www.esp32.com/viewtopic.php?t=12931
+  TIMERG0.hw_timer[0].update=1;
+  TIMERG0.hw_timer[0].config.alarm_en = 1;
+}
+
+void mudanca(){
+
+  if(i%2){
+    gpio_set_level(GPIO_NUM_2, 1);
+  }else{
+    gpio_set_level(GPIO_NUM_2, 0);
+  }
+  
+  i++;
+}
+
 void setup() {
+
+  gpio_set_direction(GPIO_NUM_2, GPIO_MODE_OUTPUT);
 
   mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0A, gpio_pwm0a);  // Identifica a GPIO x para o MCPWM0A
   mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0B, gpio_pwm0b);  // Identifica a GPIO y para o MCPWM0B
@@ -121,16 +162,82 @@ void setup() {
   // Pegar o nível da GPIO
   // int gpio_get_level(gpio_num_t gpio_num)
 
+  // Struct para configuração do timer
+  timer_config_t timer_config = {};
+
+  // Prescaler
+  timer_config.divider = 80;  // O clock está funcionando a 80 MHz
+
+  // Configura se o contador será crescente ou decrescente
+  timer_config.counter_dir = TIMER_COUNT_UP; // Contagem ascendente
+
+  // Define se iremos inicializar o temporizador ou deixar ele pausado, até chamarmos timer_start()
+  /*
+     TIMER_PAUSE -> Começar pausado
+     TIMER_START -> Já começa contando, inicia com timer_init()
+  */
+  timer_config.counter_en = TIMER_PAUSE;
+
+  // Configura se haverá alarme ou não
+  /*
+     TIMER_ALARM_DIS -> Sem alarme
+     TIMER_ALARM_EN  -> Com alarme
+  */
+  timer_config.alarm_en = TIMER_ALARM_EN;
+
+  // Configura se o temporizador irá se auto reiniciar
+  /*
+     TIMER_AUTORELOAD_DIS -> Desativa o auto reiniciar
+     TIMER_AUTORELOAD_EN -> Ativa o auto reiniciar
+  */
+  timer_config.auto_reload = TIMER_AUTORELOAD_EN;
+
+  // esp_err_t timer_init(timer_group_t group_num, timer_idx_t timer_num, const timer_config_t *config)
+  /*
+     group_num = TIMER_GROUP_X, x = 0, 1 e MAX | ->
+     timer_num = TIMER_Z, z = 0, 1 e MAX | -> Seleciona o temporizador que será utilizado
+     config = ponteiro para onde está alocado a struct criada para configuração
+  */
+  timer_init(TIMER_GROUP_0, TIMER_0, &timer_config);
+
+  // Configurar o valor inicial do temporizador
+  // esp_err_t timer_set_counter_value(timer_group_t group_num, timer_idx_t timer_num, uint64_t load_val)
+  /*
+     group_num = TIMER_GROUP_X, x = 0, 1 e MAX
+     timer_num = TIMER_Z, z = 0, 1 e MAX
+     load_val = valor a ser escrito no temporizador ao iniciá-lo
+  */
+  timer_set_counter_value(TIMER_GROUP_0, TIMER_0, 0);
+
+  // Configurar o valor do temporizador do alarme
+  // esp_err_t timer_set_alarm_value(timer_group_t group_num, timer_idx_t timer_num, uint64_t alarm_value)
+  /*
+     group_num = TIMER_GROUP_X, x = 0, 1 e MAX
+     timer_num = TIMER_Z, z = 0, 1 e MAX
+     alarm_value = valor para ocorrer a interrupção
+  */
+  timer_set_alarm_value(TIMER_GROUP_0, TIMER_0, TIMER_BASE_CLK/40); 
+
+  // Ativar a interrupção de temporizador
+  // esp_err_t timer_enable_intr(timer_group_t group_num, timer_idx_t timer_num)
+  timer_enable_intr(TIMER_GROUP_0, TIMER_0);
+
+  // Configura uma ISR para a interrupção
+  // esp_err_t timer_isr_register(timer_group_t group_num, timer_idx_t timer_num, void (*fn)(void *), void *arg, int intr_alloc_flags, timer_isr_handle_t *handle)
+  /*
+      intr_alloc_flags = prioridade da interrupção
+   */
+  timer_isr_register(TIMER_GROUP_0, TIMER_0, &isr_callback, &tag_, ESP_INTR_FLAG_LEVEL2, NULL);
+
+  // Iniciar contagem do temporizador
+  // esp_err_ttimer_start(timer_group_tgroup_num, timer_idx_ttimer_num)
+  timer_start(TIMER_GROUP_0, TIMER_0);
+
 }
 
 
 void loop() {   
 
-  val = adc1_get_raw(ADC1_CHANNEL_0);
   
-  if(val >= 1024){
-    mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, 0);
-    mcpwm_set_duty(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_B, 0);
-  }
 
 }
