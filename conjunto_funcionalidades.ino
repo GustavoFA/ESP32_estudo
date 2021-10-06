@@ -1,4 +1,4 @@
-// Junção de funcionalidades: PWM, ADC, interrupção externa e interna e WebServer (WiFi AP)
+// Junção de funcionalidades: PWM, ADC, interrupção externa, interna e WiFi(AP e WebServer)
 
 // Biblioteca para GPIO ESP32
 #include <driver/gpio.h>
