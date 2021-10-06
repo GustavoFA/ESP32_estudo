@@ -9,6 +9,8 @@
 
 // Referência:
 // https://github.com/espressif/esp-idf/blob/3e370c4296247b349aa3b9a0076c05b9946d47dc/examples/peripherals/timer_group/main/timer_group_example_main.c
+// https://www.esp32.com/viewtopic.php?t=12931
+// https://github.com/pycom/pycom-esp-idf/blob/master/components/esp32/test/test_intr_alloc.c
 
 // Biblioteca para controle dos temporizadores
 #include <driver/timer.h>
@@ -17,14 +19,26 @@
 
 char *tag = "teste";
 
+// Variável auxiliar para gerar alternância no sinal do LED
+unsigned int i = 1;
+
 
 // Rotina de serviço de interrupção
 void IRAM_ATTR isr_callback(void *args) {
 
-  gpio_set_level(GPIO_NUM_2, 0);
+  // Alternância do LED
+  if(i%2){
+    gpio_set_level(GPIO_NUM_2, 1);
+  }else{
+    gpio_set_level(GPIO_NUM_2, 0);
+  }
+  
+  i++;
 
   // Finaliza a interrupção
-  TIMERG0.int_clr_timers.t0 = 1; // Supostamente limpa o bit de interrupção --> https://www.esp32.com/viewtopic.php?t=12931
+  TIMERG0.int_clr_timers.t0 = 1;  
+  TIMERG0.hw_timer[0].update=1;
+  TIMERG0.hw_timer[0].config.alarm_en = 1;
 
 }
 
