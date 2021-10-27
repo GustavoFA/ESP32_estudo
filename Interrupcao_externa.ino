@@ -23,7 +23,12 @@ void isr_function(void *arg){
   if(!gpio_get_level(input_gpio)){
     Serial.println("Do something");
   }
-  uint32_t gpio_intr_status = READ_PERI_REG(GPIO_STATUS_REG);
+  
+  // Registrador GPIO_STATUS_REG --> Cada bit pode ser qualquer uma das fontes de interrupções das duas CPUs
+  // Registrador GPIO_STATUS_W1TC_REG --> Registrado de limpeza do registrador de status de interrupções. Cada bit 1 neste registrador corresponde ao mesmo bit no 
+  // registrador de status de interrupção será limpo (0).
+  
+  uint32_t gpio_intr_status = READ_PERI_REG(GPIO_STATUS_REG); 
   SET_PERI_REG_MASK(GPIO_STATUS_W1TC_REG, gpio_intr_status); 
 }
 
