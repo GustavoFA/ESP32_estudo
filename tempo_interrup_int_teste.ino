@@ -10,11 +10,11 @@
 
 char *tag = "teste";
 
-// Variável auxiliar para gerar alternância no sinal do LED
+// Variável auxiliar 
 unsigned int i = 1, j = 1;
 
 
-// Rotina de serviço de interrupção
+// Rotina de serviço de interrupção 1
 void IRAM_ATTR isr_callback_1(void *args) {
 
   // Alternância do LED
@@ -26,14 +26,14 @@ void IRAM_ATTR isr_callback_1(void *args) {
   
   i++;
 
-  // Finaliza a interrupção
+  // Finaliza a interrupção 
   TIMERG0.int_clr_timers.t0 = 1;  
   TIMERG0.hw_timer[0].update=1;
   TIMERG0.hw_timer[0].config.alarm_en = 1;
 
 }
 
-// Rotina de serviço de interrupção
+// Rotina de serviço de interrupção 2
 void IRAM_ATTR isr_callback_2(void *args) {
 
   // Alternância do LED
