@@ -5,6 +5,9 @@
 // Protocolo de comunicação ESP-NOW (Espressif)
 // Fazemos uma comunicação entre dois dispositivos sem a conexão fixa de WiFi entre eles
 // Utilizamos o código MAC para fazer essa ponte de envio de dados
+/* Para proteger os dados enviados é utilizado o método CCMP, sendo que o WiFi possui PMK (Primary Master
+Key) e um LMK (Local Master Key), sendo que ambas possuem tamanho de 16 bytes.
+*/
 
 // Farme format
 //  ------------------------------------------------------------------------------------------------------------
@@ -66,9 +69,10 @@ void setup(){
   esp_now_peer_info_t peerInfo;
   memcpy(peerInfo.peer_addr, broadcastAddress, 6);
   // podemos adicionar uma chave de segurança na conexão
-  // memcpy(peerInfo.lmk, key[], length);
+  uint8_t key[] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+  memcpy(peerInfo.lmk, key, 6); 
   peerInfo.channel = 0;
-  peerInfo.encrypt = false;
+  peerInfo.encrypt = true;
   // ---
 
   // Adiciono o par especificado e valido tal conexão
